@@ -1,0 +1,67 @@
+---
+title: "Day 1 mini-project"
+author: "By Anonymous Analyst Extraordinaire"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: united
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r data_prep}
+# put your data preparation code here. To get you started, the data preparation we performed in the session previously has already been pasted in. Feel free to add any additional data preparation code needed for your visualizations
+
+listings <- read_csv('../data/listings.csv') %>%  clean_prices()
+calendar <- read_csv('../data/calendar.csv') %>% clean_prices()
+solution <- read_csv('../data/airbnb_solution_budget.csv') 
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+solution <- solution %>% 
+  left_join (listings, 
+             by = c('listing' = 'id'))
+
+library(ggmap)
+
+boston_coords <- c(left = -71.1,
+                   bottom = 42.34,
+                   right = -71.05,
+                   top = 42.36)
+basemap <- get_map (location = boston_coords)
+
+ggmap(basemap)
+
+# The ggmap with basemap is just the same as any other ggplot object, with pre-built aesthetics: lon on the x axis and lat on the y axis. Let's make a plot of all the listings in our data set: 
+ggmap(basemap) +
+  geom_point(aes(x = longitude, y = latitude, color = type), 
+                 data = solution,
+                 size = 2)
+  
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+

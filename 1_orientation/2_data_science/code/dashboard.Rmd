@@ -49,56 +49,79 @@ calendar <- clean_prices(calendar)
 Column {data-width=650}
 -----------------------------------------------------------------------
 
-### A map! 
+###  Neighbourhood with highest occupancy rate over Summer
 
 ```{r box_1}
-
-library(ggmap)
-
-boston_coords <- c(left   = -71.1289, 
-				   bottom = 42.3201, 
-				   right  = -71.0189, 
-				   top    = 42.3701)
-
-basemap <- get_map(location = boston_coords,
-				maptype = 'terrain')
-
-ggmap(basemap) + 
-	geom_point(aes(x = longitude, y = latitude), 
-			   data = listings, 
-			   size = .5)
-```
-
-Column {data-width=350}
------------------------------------------------------------------------
-
-### Box 2
-
-Frequently, visualization for decision-makers are most useful when accompanied by analysis, interpretation, and sometimes a recommendation by the analyst. Feel free to fill in your own commentary on your visualizations in this box or the one below. You can leave the `R` code chunk blank for your commentary box. 
-
-```{r box_2}
-
-```
-
-### A different visualization! 
-
-```{r box_3}
-# Put the code for a supporting visualization here. This visualization should add context and nuance, but expect the main visualization to convey the bulk of your message. 
-
-# This is not a good visualization -- always remember to include titles and legends. Make yours better! 
 
 neighbourhood_lookup <- listings %>% 
 	select(id, neighbourhood)
 
 calendar %>% 
 	left_join(neighbourhood_lookup, by = c('listing_id' = 'id')) %>% 
-	group_by(neighbourhood, date) %>% 
-	summarise(price = mean(price), n = n()) %>% 
-	filter(n > 100) %>%
-	ggplot() +
-	aes(x = date, y = price, color = neighbourhood) + 
-	geom_line() + 
-	guides(color = FALSE)
+  mutate(month = month(date, label = TRUE)) %>% 
+  filter(month == 'Aug' || month == 'Jun' || month == 'Jul' ) %>% 
+	group_by(neighbourhood) %>% 
+  summarize(n = n(), occupied = sum(!available), occupancy_rate =  (occupied/n)*100) %>% 
+  filter(n>10000) %>% 
+  arrange(desc(occupancy_rate)) %>% 
+  ggplot() +
+  aes(x=reorder(neighbourhood,occupancy_rate), y = occupancy_rate) +
+  geom_bar(stat='identity') +
+  coord_flip() +
+  xlab('neighbourhood') +
+  ylab('Occupancy Rate over Summer')
+
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Neighbourhood with highest occupancy rate
+
+```{r box_2}
+neighbourhood_lookup <- listings %>% 
+	select(id, neighbourhood)
+
+calendar %>% 
+	left_join(neighbourhood_lookup, by = c('listing_id' = 'id')) %>% 
+	group_by(neighbourhood) %>% 
+  summarize(n = n(), occupied = sum(!available), occupancy_rate =  (occupied/n)*100) %>% 
+  arrange(desc(occupancy_rate)) %>% 
+  ggplot() +
+  aes(x=reorder(neighbourhood,occupancy_rate), y = occupancy_rate) +
+  geom_bar(stat='identity') +
+  coord_flip() +
+  xlab('neighbourhood') +
+  ylab('Occupancy Rate')
+  
+
+
+
+```
+
+### Neighbourhood with highest price over Summer
+
+```{r box_3}
+# Put the code for a supporting visualization here. This visualization should add context and nuance, but expect the main visualization to convey the bulk of your message. 
+
+# This is not a good visualization -- always remember to include titles and legends. Make yours better! 
+
+listings_sort<-listings %>%
+  select(id,neighbourhood)
+
+calendar %>% 
+  left_join(listings_sort,by=c('listing_id'='id')) %>%
+  mutate(month=month(date,label=TRUE)) %>%
+  mutate(is_summer=(month=="Jun" || month=="Jul" || month =="Aug")) %>%
+  filter(is_summer==TRUE)%>%
+  group_by(neighbourhood)%>%
+  summarise(ave_price=mean(price))%>%
+  ggplot()+
+  aes(x=reorder(neighbourhood,ave_price),y=ave_price)+
+  geom_bar(stat="identity")+
+  coord_flip()+
+  labs(x="Average Price over Summer",y="neighbourhood")
 ```
 
 

@@ -7,39 +7,42 @@
 # Session -> Set Working Directory -> Source File Location
 
 # load the tidyverse library
-
+library(tidyverse)
+library(lubridate)
 
 # load the data we'll use today
-
+listings<-read_csv('../../data/listings.csv')
+calendar<-read_csv('../../data/calendar.csv')
 
 # Inspect the data
-
+listings
 
 # Use head() to look at just the first rows
-
+head(listings)
 
 # Use colnames() to get the names of the columns
-
+colnames(listings)
 
 # Use glimpse() to get a structured overview of the data
-
+glimpse(listings)
+glimpse(calendar)
 
 # Let's try to compute the mean of the prices. What happens? What's the problem? 
-
+mean(listings$price)
 
 # I'm going to do just a little bit of data cleaning for you. 
 # There are a few columns in each data set that should be prices (i.e. numbers) but R will read them as strings. 
 # The below three lines fix that. 
 
 # Load in a custom R  file. By the end of today you'll be able to understand most  of it. 
-      
+source('clean_prices.R')      
 
 # Apply the "clean_prices" custom function to each data set. 
-
+listings <- clean_prices(listings)
+calendar <- clean_prices(calendar)
 
 # Now let's check again 
-
-
+mean(listings$price)
 # Good to go! 
 
 # ----------------------------------------------
@@ -62,11 +65,12 @@
 # way, and then see how to dramatically simplify it using some syntactical magic. 
 
 # filter() to include only JP listings
-
+jp_only <- filter(listings,neighbourhood == 'Jamaica Plain')
 # arrange() to sort in descending order by rating        
-
+jp_sorted <- arrange(jp_only, desc(review_scores_rating))
 # Select only the columns we want to see               
-
+jp_best <- select(jp_sorted, neighbourhood, name, review_scores_rating)
+jp_best
 
 # Problem: this code wastes:
 # 1. **Headspace** to think of names for the intermediate steps ("jp_only", "jp_sorted") that we don't 
@@ -77,7 +81,7 @@
 
 # Let's see if we can address these problems using nested syntax instead. 
 # Nested syntax refers to simply writing function calls inside other functions. 
-
+jp_best2 <- select(arrange(filter(listings,neighbourhood == "Jamaica Plain"), desc(review_scores_rating)), neighbourhood, name, review_scores_rating)
 
 
 # Ok, that's no longer wasteful, but it's also illegible -- hard to write, hard to troubleshoot. What to do? Back to the slides to discuss the pipe
@@ -87,14 +91,18 @@
 # -----------------------------------------------------
 
 # Working with your partner, please rewrite the JP code using the pipe operator. Here's the first line to get you started:
-
-
+# x %>% f(y) <=> f(x,y) take x and do f with parameter y
 
 # ----------------------------------------------
 # SOLUTION
 # ----------------------------------------------
+jp_best3 <- listings %>% 
+  filter(neighbourhood == 'Jamaica Plain') %>% 
+  arrange(desc(review_scores_rating)) %>%
+  select(neighbourhood, name, review_scores_rating)
+jp_best3
 
-
+    
 # -----------------------------------------------------
 # EXERCISE 2: The Biggest Place in Back Bay
 # -----------------------------------------------------
@@ -108,14 +116,26 @@
 # ----------------------------------------------
 # SOLUTION
 # ----------------------------------------------
+glimpse(listings)
 
+bb_biggest <- listings %>% 
+  filter(neighbourhood == 'Back Bay') %>% 
+  arrange(desc(accommodates),price) %>% 
+  select(neighbourhood, accommodates, price)
+bb_biggest
 
 # -----------------------------------------------------------------
 # Exploratory Data Analysis
 # -----------------------------------------------------------------
 
 # What's the average price per person to stay at an AirBnB in Boston? Let's see how to construct a simple summary table in which we'll display the average rating and price-per-guest by neighborhood. We can use the accommodates field as a simple estimate of how many people can fit in a listing. 
-
+listings %>% 
+  mutate(price_per = price/accommodates) %>% 
+  group_by(neighbourhood) %>% 
+  summarize(price_per = mean(price_per),
+            n = n(), 
+            mean_rating = mean(review_scores_rating, na.rm = TRUE)) # n gives how many listing we have 
+# n() is total number of rows
 
 # Next, let's summarise() the results by computing the average: 
 
@@ -145,7 +165,16 @@
 # ----------------------------------------------
 # SOLUTION
 # ----------------------------------------------
-
+summarytable <- listings %>% 
+  mutate(price_per = price/accommodates) %>% 
+  mutate(rate_per = weekly_price/accommodates) %>% 
+  group_by(neighbourhood,property_type) %>% 
+  summarize(mean_rating = mean(review_scores_rating, na.rm = TRUE), 
+            price_per = mean(price_per), 
+            rate_per = mean(rate_per,na.rm = TRUE), 
+            n = n(), 
+            capacity = sum(accommodates)) 
+summarytable
 
 
 
@@ -162,7 +191,7 @@
 # ----------------------------------------------
 # SOLUTION
 # ----------------------------------------------
-
+calendar
 
 
 
@@ -188,15 +217,20 @@
 # ----------------------------------------------
 # SOLUTION
 # ----------------------------------------------
+month("2019-09-03", label = TRUE)
 
-
-
-
-
-
+september_availability <- calendar %>% 
+  mutate(month = month(date, label = TRUE)) %>% 
+  filter(month == 'Sep' ) %>% 
+  group_by(listing_id) %>% 
+  summarize(nights_available = sum(available)) %>% # no need to do available == TRUE, assumed for logical variable
+  filter(nights_available>0)
+           
 # Our next task is to *join* the september_availability table to the listings table. There are many ways to do this, and we're not going to go through all of them today. We will do a left join, which preserves all rows of listings. We need to provide a correspondence between columns of the two tables. 
 
-
+listings <- listings %>% 
+  left_join(september_availability,
+            by = c('id' = 'listing_id')) # id column in listing table and listing id column in calendar table
 
 # Let's take a look at the new column we've created:
 
@@ -206,6 +240,10 @@
 # What does the NA mean?
 # Let's filter it out
 
+listings %>% 
+  filter(!is.na(nights_available)) %>% 
+  group_by(neighbourhood) %>% 
+  summarize(nights_available = mean(nights_available))
 
 
 # How many listings have any availability in September?
@@ -219,13 +257,22 @@
 # Now that we've seen a bit of the theory behind visualization in R, let's get our hands dirty. 
 
 # Let's start with a simple histogram of the review scores. We'll build up this plot line by line. 
-
-
-
+listings %>% 
+  ggplot() + 
+  aes(x = review_scores_rating) +
+  geom_histogram() 
 
 # How about a bar chart?
-
-
+summarytable %>% 
+  filter(property_type == 'Apartment') %>% 
+  ggplot() +
+  aes(x = reorder(neighbourhood, n), y = n) +
+  geom_bar(stat = 'identity') + # stat = 'identify' allows us to specify the y label
+  #geom_point()
+  coord_flip() +
+  # xlab('Neighbourhood') +
+  # ylab('Number of Apartments')
+  labs(x = 'Neighbourhoods', y = 'Number of Apartments', title = 'My Bar Chart', subtitle = 'Never do pie charts')
 
 
 # Ok, well that looks kind of gross. When you have a bar chart and it's gross, you should usually consider flipping the axes, sorting the data, or both: 
@@ -234,7 +281,13 @@
 
 
 # Next, let's do a simple scatter plot of the number of reviews vs. review score. We'll again build up this plot line by line. 
-
+listings %>% 
+  ggplot() +
+  aes(x = number_of_reviews, 
+      y = review_scores_rating,
+      color = property_type) + 
+  geom_point() +
+  theme_bw()
 
 
 
@@ -249,13 +302,25 @@
 # ----------------------------------------------
 # SOLUTION
 # ----------------------------------------------
+calendar %>% 
+  group_by(date) %>% 
+  summarize(avg_price = mean(price)) %>% 
+  ggplot() +
+  aes(x = date, y = avg_price) +
+  geom_line()
 
-
+  
 
 # Notice anything interesting? We'll come back to this in October...
 
 # We don't usually just want to look at one set of bars or time-series -- we want to make comparisons. The two most common ways to make comparisons in plots are colors and small multiples. Let's grab that scatterplot we made earlier: 
-
+listings %>% 
+  ggplot() +
+  aes(x = number_of_reviews, 
+      y = review_scores_rating,
+      color = property_type) + 
+  geom_point() +
+  theme_bw()
 
 
 
@@ -270,14 +335,18 @@
 # -----------------------------------------------------
 # SOLUTION
 # -----------------------------------------------------
-
+listings %>% 
+  mutate(is_boat = (property_type == 'Boat')) %>% 
+  ggplot() +
+  aes(x = number_of_reviews, 
+      y = review_scores_rating,
+      color = is_boat) + 
+  geom_point() +
+  facet_wrap(~is_boat)+
+  theme_bw()
 
 
 # This is technically correct, but it's not that useful because I can't actually see any of the boat listings. We can fix this using small multiples -- we'll separate out the boats into their own, separate plot. 
-
-
-
-
 
 # -----------------------------------------------------
 # EXERCISE 8: PRICE OF BOAT STAYS OVER TIME
@@ -285,19 +354,41 @@
 
 # When is the best time to stay on a boat? Does it even matter? Create a version of the price-over-time plot that you did in Exercise 6 to answer this question. There should be one trendline for the price per night to stay in a boat, and another trendline for other property types. This exercise will call on multiple skills we've learned so far. In addition to modifying the code given to you in Exercise 6, you'll probably need to use a left-join as well. 
 
+types <-listings %>% 
+  select(id, property_type)
 
-
+calendar %>% 
+  left_join(types,
+            by = c('listing_id' = 'id')) %>% 
+  mutate(is_boat = (property_type == 'Boat')) %>% 
+  group_by(date,is_boat) %>% 
+  summarize(avg_price = mean(price, na.rm = TRUE)) %>%  # till here gives you dataset with 3 cols
+  ggplot() +
+  aes(x = date, y = avg_price, color = is_boat) +
+  geom_line() +
+  facet_wrap(~is_boat)
+  
 
 	
 # We've covered some of the most important types of plots -- histograms, bar charts, line plots, and scatterplots, as well as ways to slice-and-dice these using color and small multiples. Now we're going to add a geographic component so we can see *where* listings of interest are located in the city.
 
 # We can get a "basemap" of Boston using the ggmap package, as in the following code: 
 
+library(ggmap)
 
+boston_coords <- c(left = -71.1289,
+                   bottom = 42.3201,
+                   right = -71.0189,
+                   top = 42.3701)
+basemap <- get_map (location = boston_coords)
 
+ggmap(basemap)
 
 # The ggmap with basemap is just the same as any other ggplot object, with pre-built aesthetics: lon on the x axis and lat on the y axis. Let's make a plot of all the listings in our data set: 
-
+ggmap(basemap) +
+  geom_point(aes(x = longitude, y = latitude), 
+                 data = listings,
+                 size = .5)
 
 
 

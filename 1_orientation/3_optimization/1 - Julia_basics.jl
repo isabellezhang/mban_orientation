@@ -46,16 +46,22 @@ v + w
 v*w # won't work!
 v.*w # element-wise operation 
 v .+ 1
+v'*w # 'is transpose of a matrix
 
-# editing arrays
+# editing arrays, adding to the end of array
 push!(v,2)
+pop!(v) # removing last element of array
+
+# making copy of array
+s = copy(v) #modify v, s doesn't change
+s = v #modify v, s change with it
 
 # array comparisons
 v==1
 v<=1 # doesn't work!
 v.>=2 # element-wise comparisons are OK
 g = v.<=3
-v[g] # logical indexing
+v[g] # logical indexing, return element in v that satisfy logical test
 f = findall(v.<=3)
 v[f]
 
@@ -63,7 +69,7 @@ v[f]
 # nested arrays
 u = [w, v, [1, 9], 100]
 u[1] # an array
-u[1][2] # a number
+u[1][2] # a number # if modify w, u will change 
 
 # Matrices
 A = [1 2 3; 4 5 6; 7 8 9] # no commas between entries!
@@ -71,7 +77,7 @@ A[1][2] # doesn't work!
 A[1,2] 
 A[:,1] # first column
 size(A)
-B = zeros(3,3)
+B = zeros(3,3) # default floating point value
 C = ones(size(A))
 A+C
 A*C # matrix multiplication
@@ -85,10 +91,10 @@ b = "My name is"
 a + b # nope!
 join([b,a]) 
 join([b,a]," ") #put a space between them
-"Hello. $b $a."
+"Hello. $b $a." # $ is find variable and put it here
 print(a)
 print(b,v)
-println(y)
+println(y) # put a line break, print on  a new line 
 
 # arrays
 [a, b, v, z] # you can put (almost) anything in an array
